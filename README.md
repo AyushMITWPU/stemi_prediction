@@ -6,7 +6,7 @@ Official repository for the paper, see [this link](https://www.nature.com/articl
 Gustafsson, S., Gedon, D., Lampa, E. et al., Development and validation of deep learning ECG-based prediction of myocardial infarction in emergency department patients. Scientific Report*, 12, 19615 (2022).
 `
 
-This repository contains only the code for **testing** the model. It does not contain the code for training the model. To run the model, you need to have the trained model weights. The model weights are available upon request. Please contact Daniel Gedon, email: [daniel.gedon@it.uu.se](mailto:daniel.gedon@it.uu.se).
+This repository contains only the code for **testing** the model. It does not contain the code for training the model. To run the model, you need to have the trained model weights. The model weights are available upon request. Please contact Daniel Gedon, email: [daniel.gedon@uni-tuebingen.de](mailto:daniel.gedon@uni-tuebingen.de).
 
 ## Installation
 
