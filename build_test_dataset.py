@@ -51,14 +51,14 @@ def normalize(ecg, sample_rate):
 
 
 def main():
-    base_path = "data/ptb-xl/"
+    base_path = "data/Test_data/"
     out_path = "data/"
 
-    test_records = pd.read_csv(out_path + "ptbxl_selected.csv")
+    test_records = pd.read_csv(out_path + "Test_metadata.csv")
 
     test_traces = [
         wfdb.rdsamp(base_path + raw_file)
-        for raw_file in tqdm.tqdm(test_records.filename_hr.values)
+        for raw_file in tqdm.tqdm(test_records.path.values)
     ]
     test_traces = np.array([signal for signal, meta in test_traces])
 
@@ -94,7 +94,7 @@ def main():
         else:
             y[i] = 0
 
-        record_id[i] = np.bytes_(test_records.iloc[i]["filename_hr"])
+        record_id[i] = np.bytes_(test_records.iloc[i]["path"])
         num_record_id[i] = int(test_records.iloc[i]["patient_id"])
         
     f.close()
