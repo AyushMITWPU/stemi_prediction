@@ -3,8 +3,10 @@ import h5py
 import numpy as np
 import torch
 
+
 class MyECGDataset(Dataset):
     def __init__(self, path):
+
         # open pointer to h5 file
         self.f = h5py.File(path, "r")
 
@@ -16,9 +18,8 @@ class MyECGDataset(Dataset):
         self.age = torch.tensor(self.f["x_age_test"])
         self.sex = torch.tensor(self.f["x_is_male_test"]).long()
 
-        self.min_age = self.age.min().item()
-        self.max_age = self.age.max().item()
-        self.normalize_age()
+        age_mean, age_std = 62.60858, 19.514
+        self.normalize_age(age_mean, age_std)
 
     def get_num_leads_outputs(self):
         # get number of leads / outputs
@@ -31,9 +32,9 @@ class MyECGDataset(Dataset):
             num_outputs = 3
         return num_leads, num_outputs
 
-    def normalize_age(self):
-        # Min-Max normalization
-        self.age_normalized = (self.age - self.min_age) / (self.max_age - self.min_age)
+    def normalize_age(self, mean, std):
+        # normalize age
+        self.age_normalized = (self.age - mean) / std
 
     def __len__(self):
         return self.dset_length
