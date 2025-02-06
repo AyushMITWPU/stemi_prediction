@@ -2,11 +2,14 @@ import wfdb
 import pandas as pd
 import numpy as np
 import scipy.signal as sgn
+import tqdm
 import h5py
-import os
+
 
 # Leads available in the GE MUSE format.
+# The remaining 4 in the 12-lead setup will not be calculated.
 leads_used = ["I", "II", "V1", "V2", "V3", "V4", "V5", "V6"]
+
 
 def remove_baseline_filter(sample_rate):
     """For a given sampling rate"""
@@ -23,6 +26,7 @@ def remove_baseline_filter(sample_rate):
     )
 
     return sos
+
 
 def normalize(ecg, sample_rate):
     """Take a stacked array with all lead data, remove the baseline, resample to 400Hz, and zero pad to length 4096."""
@@ -45,54 +49,56 @@ def normalize(ecg, sample_rate):
 
     return ecg_zeropadded
 
+
 def main():
-    base_path = "/content/stemi_prediction/data/Test_data"  # Base path for data files
-    out_path = "/content/stemi_prediction/data/"
+    base_path = "data/Test_data/"
+    out_path = "data/"
 
-    # Load the metadata
-    test_records = pd.read_csv(os.path.join(out_path, "Test_metadata.csv"))
+    test_records = pd.read_csv(out_path + "Test_metadata.csv")
 
-    # Check if there are any records
-    if test_records.empty:
-        print("No records found in Test_metadata.csv.")
-        return
+    test_traces = [
+        wfdb.rdsamp(base_path + raw_file)
+        for raw_file in tqdm.tqdm(test_records.path.values)
+    ]
+    test_traces = np.array([signal for signal, meta in test_traces])
 
-    # Process only the last entry in the metadata
-    last_record = test_records.iloc[-1]
-    raw_file = last_record['path']  # This should contain the relative path
+    f = h5py.File(out_path + "test_data.h5", "w")
+    set_name = "test"
+    n = len(test_records)
+    x_ecg = f.create_dataset(
+        "x_ecg_{}".format(set_name), (n, len(leads_used), 4096), dtype="f8"
+    )
+    x_age = f.create_dataset("x_age_{}".format(set_name), (n,), dtype="i4")
+    x_is_male = f.create_dataset("x_is_male_{}".format(set_name), (n,), dtype="i4")
+    y = f.create_dataset("y_{}".format(set_name), (n,), dtype="i4")
+    record_id = f.create_dataset("id_xmlfile_{}".format(set_name), (n,), dtype="S100")
+    num_record_id = f.create_dataset("id_num_{}".format(set_name), (n,), dtype="i4")
 
-    # Construct the full path to the .dat and .hea files
-    dat_file_path = os.path.join(base_path, raw_file + ".dat")  # Constructing path for .dat file
-    hea_file_path = os.path.join(base_path, raw_file + ".hea")  # Constructing path for .hea file
+    # leads to select and lead order: 'I', 'II', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'
+    lead_order = [0, 1, 6, 7, 8, 9, 10, 11]
+    scale_factor = 1
 
-    # Print the constructed paths for debugging
-    print(f"Constructed .dat file path: {dat_file_path}")
-    print(f"Constructed .hea file path: {hea_file_path}")
+    for i in tqdm.tqdm(range(len(test_records))):
+        x_ecg[i, :, :] = normalize(test_traces[i, :, lead_order] * scale_factor, 500)
+        x_age[i] = test_records.iloc[i]["age"]
 
-    # Check if the .dat and .hea files exist
-    if not os.path.exists(dat_file_path):
-        print(f"File {dat_file_path} not found.")
-        return
-    if not os.path.exists(hea_file_path):
-        print(f"File {hea_file_path} not found.")
-        return
+        # sex: 0=male, 1=female (52% male in total PTB-XL dataset).
+        if test_records.iloc[i]["sex"] == 0:
+            x_is_male[i] = 1
+        else:
+            x_is_male[i] = 0
 
-    # Read the ECG signal
-    try:
-        signal, meta = wfdb.rdsamp(dat_file_path)
-    except Exception as e:
-        print(f"Error reading {dat_file_path}: {e}")
-        return
+        # outcome labels: 0=control, 1=STEMI, 2=NSTEMI.
+        if test_records.iloc[i]["label"] == "mi":
+            y[i] = 1
+        else:
+            y[i] = 0
 
-    # Normalize the ECG signal
-    normalized_ecg = normalize(signal, 500)  # Assuming a sample rate of 500 Hz
+        record_id[i] = np.bytes_(test_records.iloc[i]["path"])
+        num_record_id[i] = int(test_records.iloc[i]["patient_id"])
+        
+    f.close()
 
-    # Create HDF5 file and datasets
-    with h5py.File(os.path.join(out_path, "test_data.h5"), "w") as f:
-        set_name = "test"
-        x_ecg = f.create_dataset("x_ecg_{}".format(set_name), data=normalized_ecg, dtype="f8")
-        x_age = f.create_dataset("x_age_{}".format(set_name), data=np.array([last_record["age"]]), dtype="i4")
-        x_is_male = f.create_dataset("x_is_male_{}".format(set_name), data=np.array([1 if last_record["gender"] == "male" else 0]), dtype="i4")
 
 if __name__ == "__main__":
     main()
