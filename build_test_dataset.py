@@ -55,6 +55,7 @@ def main():
     out_path = "data/"
 
     test_records = pd.read_csv(out_path + "Test_metadata.csv")
+    test_records = test_records.tail(1)
 
     test_traces = [
         wfdb.rdsamp(base_path + raw_file)
